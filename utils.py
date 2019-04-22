@@ -4,6 +4,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+def int2bit(n, num_of_bits):
+    s = '{0:0' + str(num_of_bits) + 'b}'
+    return [int(digit) for digit in s.format(n)]
+
+def bit2int(l):
+    b = 0
+    for bit in l:
+        b = (b << 1) | bit
+    return b
+
 def get_model_name(model):
     return model.__class__.__name__
 
@@ -24,6 +34,18 @@ def save_model(model, epoch, experiment_name):
     filename = os.path.join(save_dir, filename)
     torch.save(model_dict, filename)
 
+def save_latest_model(model, experiment_name):
+    model_name = get_model_name(model) + '_' +experiment_name
+    save_dir = os.path.join('./trained_models', model_name)
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+
+    model_dict = {'state_dict': model.state_dict()}
+    filename = 'checkpoint_latest.pth.tar'
+
+    filename = os.path.join(save_dir, filename)
+    torch.save(model_dict, filename)
+
 
 def load_model(model, device, epoch=300, experiment_name='default',fullpath=None):
     print("loading checkpoint")
@@ -32,6 +54,17 @@ def load_model(model, device, epoch=300, experiment_name='default',fullpath=None
     else:
         model_name = get_model_name(model) + '_' +experiment_name
         filename = model_file_name(epoch)
+        model_path = os.path.join('./trained_models', model_name, filename)
+    checkpoint = torch.load(model_path, map_location=device)
+    model.load_state_dict(checkpoint['state_dict'])
+
+def load_latest_model(model, device, experiment_name='default',fullpath=None):
+    print("loading checkpoint")
+    if fullpath:
+        model_path = fullpath
+    else:
+        model_name = get_model_name(model) + '_' +experiment_name
+        filename = 'checkpoint_latest.pth.tar'
         model_path = os.path.join('./trained_models', model_name, filename)
     checkpoint = torch.load(model_path, map_location=device)
     model.load_state_dict(checkpoint['state_dict'])
@@ -71,11 +104,12 @@ def _acc(conf_mat):
     return acc, acc_top3
 
 
-def _plot_fig(train_loss, val_loss, title):
+def _plot_fig(train_loss, val_loss, err_loss, title):
     plt.title(title)
     plt.xlabel('epoch num'), plt.ylabel('loss')
     plt.plot(train_loss, label="Train Loss")
     plt.plot(val_loss, label="Val Loss")
+    plt.plot(err_loss, label="Err Loss")
     plt.legend()
     file_name = title + '.png'
     plt.savefig(file_name)

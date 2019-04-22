@@ -11,6 +11,8 @@ import torch.utils.data as data
 from PIL import Image
 from os import path
 from warnings import warn
+import torch
+from utils import int2bit
 
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as F
@@ -23,27 +25,48 @@ labels_histo_pickle = 'labels_histo.pickle'
 pickle_dir = './pickles'
 
 class Dataset(data.Dataset):
-    def __init__(self, train=True, pickle_name=None, transforms=None):
+    def __init__(self, model, train=True, transforms=None):
         self.train = train
         self.transforms = transforms
-        pickle_filename = Pickle
-        pickle_path = os.path.join(pickle_dir, pickle_filename)
-        with open(pickle_path, 'rb') as f:
-            self.dataset = pickle.load(f)
-        if train:
-            self.dataset = self.dataset[len(self.dataset) // 10:]
-        else:
-            self.dataset = self.dataset[:len(self.dataset) // 10]
+        # pickle_path = os.path.join(pickle_dir, Pickle) if not pickle_name else pickle_name
+        # with open(pickle_path, 'rb') as f:
+        #     self.dataset = pickle.load(f)
+        self.model = model
+        self.model_len = 2 ** model.inputs
+        self.inputs = model.inputs
+        self.train = train
+        # np.random.shuffle(self.dataset)
+        # if train:
+        #     self.dataset = self.dataset[len(self.dataset) // 10:]
+        # else:
+        #     self.dataset = self.dataset[:len(self.dataset) // 10]
 
 
     def __getitem__(self, index):
-        x, y = self.dataset[index]
+        x = list()
+        if self.train:
+            x = int2bit(index, self.inputs)
+        else:
+            for _ in range(0, self.inputs):
+                x.append(random.randint(0, 1))
+        y = self.model.forward(x)
+        x = torch.Tensor(x)
+        y = torch.Tensor(y)
+        return x,y
 
-        return x, y
+        # x, y = self.dataset[index]
+        # a = np.zeros(8)
+        # res = x[0]*x[0]
+        # for i in range(8):
+        #     a[i] = (res > i*32)
+        #
+        # # y = np.array([int(d) for d in str(y)])
+        #
+        # return x, y
 
 
     def __len__(self):
-        return len(self.dataset)
+        return min(self.model_len, 2**12)
 
     def name(self):
         return 'Dataset'
